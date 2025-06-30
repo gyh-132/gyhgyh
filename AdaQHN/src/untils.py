@@ -3,11 +3,14 @@ import torch.nn as nn
 import collections
 import re
 import sys
+import string
 import numpy as np
 import random
+from pathlib import Path
 
 
 class RMSELoss(nn.Module):
+    """均方误差损失函数"""
     def __init__(self):
         super(RMSELoss, self).__init__()
 
@@ -89,5 +92,125 @@ def load_corpus_vocab(path, token='word', max_tokens=-1):
     if max_tokens > 0:
         corpus = corpus[:max_tokens]
     return corpus, vocab
+
+
+def process_agnews(frac=10, max_length=64, min_freq=5):
+    """处理AG News数据集并保存子集
+
+    Args:
+        frac: 子集比例分母 (1/frac)
+        max_length: 文本最大长度（词数）
+        min_freq: 最小词频，低于此频率的词将被归为<unk>
+    """
+    # 设置随机种子保证可重复性
+    random.seed(42)
+
+    # 加载原始数据
+    df_train = pd.read_csv('../dataset/AG news/train.csv')
+    df_val = pd.read_csv('../dataset/AG news/test.csv')
+
+    def process_dataframe(df, frac):
+        """处理单个DataFrame：预处理文本+截断文本+均匀抽样"""
+        # 先进行抽样，保持原始分布
+        class_indices = defaultdict(list)
+        for idx, label in enumerate(df['Class Index']):
+            class_indices[label].append(idx)
+
+        subset_indices = []
+        samples_per_class = len(df) // (len(class_indices) * frac)
+
+        for label in class_indices:
+            subset_indices.extend(
+                random.sample(class_indices[label], samples_per_class)
+            )
+
+        df = df.iloc[subset_indices].copy()
+
+        # 预处理文本：合并标题和描述，去标点，转小写
+        df['Text'] = df.apply(
+            lambda x: ' '.join(
+                (x['Title'] + ' ' + x['Description'])
+                .lower()  # 转为小写
+                .translate(str.maketrans('', '', string.punctuation))  # 去除标点
+                .split()[:max_length]),  # 截断
+            axis=1
+        )
+
+        # 标签减1（原始1-4 → 转换为0-3）
+        df['Class Index'] = df['Class Index'].astype(int) - 1
+
+        return df[['Class Index', 'Text']]
+
+    train_subset = process_dataframe(df_train, frac)
+    val_subset = process_dataframe(df_val, frac)
+
+    # 第一步：统计词频
+    word_freq = defaultdict(int)
+    for text in train_subset['Text'].values:
+        for word in text.split():
+            word_freq[word] += 1
+
+    # 第二步：构建词汇表，过滤低频词
+    vocab = {'<pad>': 0, '<unk>': 1}
+    current_idx = 2  # 从2开始，因为0和1已被占用
+
+    # 只保留频率≥min_freq的词，并按频率从大到小排序
+    sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
+    for word, freq in sorted_words:
+        if freq >= min_freq:
+            vocab[word] = current_idx
+            current_idx += 1
+
+    # 第三步：将文本转换为索引序列，低频词转为<unk>
+    def text_to_indices(text):
+        indices = [vocab.get(word, vocab['<unk>']) for word in text.split()]
+        # 如果索引序列小于max_length，填充0直到长度为max_length
+        return indices + [0] * (max_length - len(indices)) if len(indices) < max_length else indices[:max_length]
+
+    train_subset['Indices'] = train_subset['Text'].apply(text_to_indices)
+    val_subset['Indices'] = val_subset['Text'].apply(text_to_indices)
+
+    # 保存词汇表
+    with open(f"../dataset/AG news/frac{frac}_ml{max_length}_minfreq{min_freq}_vocab.txt", 'w') as f:
+        for word, idx in sorted(vocab.items(), key=lambda x: x[1]):
+            f.write(f"{word}\t{idx}\t{word_freq.get(word, 0)}\n")
+
+    # 保存训练集和验证集（包含原始文本和索引序列）
+    train_subset.to_csv(f"../dataset/AG news/frac{frac}_ml{max_length}_minfreq{min_freq}_train_processed.csv",
+                        index=False)
+    val_subset.to_csv(f"../dataset/AG news/frac{frac}_ml{max_length}_minfreq{min_freq}_val_processed.csv", index=False)
+
+    # 统计信息
+    num_unk = sum(1 for word in word_freq if word_freq[word] < min_freq)
+    print(f"处理完成！子集已保存到 ../dataset/AG news/下")
+    print(f"词汇表大小: {len(vocab)} (包含{num_unk}个低频词被归为<unk>)")
+    print(f"训练子集: {len(train_subset)} 条 (标签范围: {set(train_subset['Class Index'])})")
+    print(f"测试子集: {len(val_subset)} 条 (标签范围: {set(val_subset['Class Index'])})")
+
+
+if __name__ == '__main__':
+    import pandas as pd
+    import torch
+    from collections import defaultdict
+    import random
+    import string
+
+    process_agnews(frac=2, max_length=64, min_freq=10)
+
+    # # 加载EMNIST训练集
+    # full_train = datasets.EMNIST(
+    #     root='../dataset',
+    #     split='balanced',
+    #     train=True,
+    #     download=True,
+    #     transform=None  # 暂时禁用transform以检查原始数据
+    # )
+    # full_test = datasets.EMNIST(root='../dataset', split='balanced', train=False, download=True, transform=None)
+    #
+    # print("类别名称:", full_train.classes)
+    # print("类别数量:", len(full_train.classes))
+    #
+    # print(len(full_train), len(full_test))
+
 
 

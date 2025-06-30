@@ -3,82 +3,119 @@ import torch.nn as nn
 import torch.nn.init as init
 
 
-class GRU1(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers, seed):
-        super(GRU1, self).__init__()
-        self.vocab_size = vocab_size
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
-        self.seed = seed
-
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.gru = nn.GRU(input_size=embedding_dim, hidden_size=hidden_dim, num_layers=num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_dim, vocab_size)
-        self.dropout = nn.Dropout(0.5)  # Dropout层
-
-        # 初始化各层权重
-        nn.init.xavier_uniform_(self.embedding.weight)  # 使用 Xavier 均匀分布初始化
-
-        torch.manual_seed(self.seed)  # 设置随机种子以固定参数初始化
-        for name, param in self.gru.named_parameters():
-            if 'weight_ih' in name:
-                nn.init.xavier_uniform_(param)  # 使用 Xavier 均匀分布初始化
-            elif 'weight_hh' in name:
-                nn.init.orthogonal_(param)  # 使用正交初始化
-            elif 'bias' in name:
-                # 初始化偏置
-                nn.init.constant_(param, 0)  # 偏置初始化为0
-
-        nn.init.xavier_uniform_(self.fc.weight)  # 使用 Xavier 均匀分布初始化
-        nn.init.constant_(self.fc.bias, 0)  # 偏置初始化为0
-
-    def forward(self, x):
-        self.gru.flatten_parameters()  # 将权重压缩为一个连续的内存块，以避免不必要的性能损失
-        x = self.embedding(x)  # [batch_size, seq_len] -> [batch_size, seq_len, embedding_dim]
-        # 初始化隐藏状态h  形状保持不变一直为(num_layers, batch_size, hidden_size)
-        h = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).to(x.device)
-        # 经过GRU后out与h形状: (seq_len, batch_size, hidden_size),(num_layers, batch_size, hidden_size)
-        out, h = self.gru(x, h)
-        # Dropout一下，缓解过拟合
-        out = self.dropout(out)
-        # 经fc后out 变为 (seq_length, batch_size, vocab_size)
-        out = self.fc(out)
-
-        return out
-
-
-class MLP1(nn.Module):
+class PoolMLP(nn.Module):
+    """用于 EMnist_digits"""
     def __init__(self, seed):
-        super(MLP1, self).__init__()
-        self.n = 64
-        self.fc1 = nn.Linear(self.n, self.n)
-        self.fc2 = nn.Linear(self.n, self.n)
-        self.fc3 = nn.Linear(self.n, 1)
+        super(PoolMLP, self).__init__()
+        self.pool = nn.AvgPool2d(kernel_size=2, stride=2)  # 28x28 -> 14x14
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(14 * 14, 128)
+        self.fc2 = nn.Linear(128, 10)
+
         self.seed = seed
 
         torch.manual_seed(self.seed)  # 设置随机种子以固定参数初始化
         nn.init.kaiming_normal_(self.fc1.weight, a=0.1)
         nn.init.kaiming_normal_(self.fc2.weight, a=0.1)
-        nn.init.kaiming_normal_(self.fc3.weight, a=0.1)
-        nn.init.constant_(self.fc1.bias, 0)
-        nn.init.constant_(self.fc2.bias, 0)
-        nn.init.constant_(self.fc3.bias, 0)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
 
     def forward(self, x):
+        x = self.pool(x)
+        x = self.flatten(x)
         x = nn.functional.leaky_relu(self.fc1(x), negative_slope=0.1)
-        x = nn.functional.leaky_relu(self.fc2(x), negative_slope=0.1)
-        x = torch.sigmoid(self.fc3(x))  # sigmoid用于将输出映射到01之间
+        x = self.fc2(x)
         return x
 
 
-class GLeNet(nn.Module):
+class LSTM1(nn.Module):
+    """用于 AG News"""
+    def __init__(self, seed, vocab_size, embed_dim, hidden_size, num_classes):
+        super(LSTM1, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
+        self.lstm = nn.LSTM(embed_dim, hidden_size, batch_first=True)
+        self.dropout = nn.Dropout(0.5)
+        self.fc = nn.Linear(hidden_size, num_classes)
+        self.seed = seed
+
+        torch.manual_seed(self.seed)  # 设置随机种子以固定参数初始化
+        # 初始化embedding层
+        init.xavier_uniform_(self.embedding.weight)  # 使用Xavier初始化embedding层的权重
+        # 初始化LSTM层
+        for name, param in self.lstm.named_parameters():
+            if 'weight_ih' in name:  # 输入门权重
+                init.xavier_uniform_(param)  # Xavier初始化
+            elif 'weight_hh' in name:  # 隐藏门权重
+                init.xavier_uniform_(param)  # Xavier初始化
+            elif 'bias' in name:  # 偏置项
+                init.zeros_(param)  # 偏置初始化为零
+        # 初始化全连接层
+        init.xavier_uniform_(self.fc.weight)  # 使用Xavier初始化全连接层的权重
+        init.zeros_(self.fc.bias)  # 偏置初始化为零
+
+    def forward(self, x):
+        # x shape: (batch_size, seq_length)
+        embedded = self.embedding(x)  # (batch_size, seq_length, embed_dim)
+
+        # LSTM层
+        lstm_out, (hidden, cell) = self.lstm(embedded)
+        # lstm_out shape: (batch_size, seq_length, hidden_size)
+        # hidden shape: (1, batch_size, hidden_size)
+
+        # 取最后一个时间步的输出
+        out = self.dropout(hidden.squeeze(0))
+        out = self.fc(out)
+        return out
+
+
+class GRU1(nn.Module):
+    """用于 AG News"""
+    def __init__(self, seed, vocab_size, embed_dim, hidden_size, num_classes):
+        super(GRU1, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
+        self.gru = nn.GRU(embed_dim, hidden_size, batch_first=True)
+        self.dropout = nn.Dropout(0.5)
+        self.fc = nn.Linear(hidden_size, num_classes)
+        self.seed = seed
+
+        torch.manual_seed(self.seed)  # 设置随机种子以固定参数初始化
+        # 初始化embedding层
+        init.xavier_uniform_(self.embedding.weight)  # 使用Xavier初始化embedding层的权重
+        # 初始化GRU层
+        for name, param in self.gru.named_parameters():
+            if 'weight_ih' in name:  # 输入门权重
+                init.xavier_uniform_(param)  # Xavier初始化
+            elif 'weight_hh' in name:  # 隐藏门权重
+                init.xavier_uniform_(param)  # Xavier初始化
+            elif 'bias' in name:  # 偏置项
+                init.zeros_(param)  # 偏置初始化为零
+        # 初始化全连接层
+        init.xavier_uniform_(self.fc.weight)  # 使用Xavier初始化全连接层的权重
+        init.zeros_(self.fc.bias)  # 偏置初始化为零
+
+    def forward(self, x):
+        # x shape: (batch_size, seq_length)
+        embedded = self.embedding(x)  # (batch_size, seq_length, embed_dim)
+
+        # GRU层
+        gru_out, hidden = self.gru(embedded)
+        # gru_out shape: (batch_size, seq_length, hidden_size)
+        # hidden shape: (1, batch_size, hidden_size)
+
+        # 取最后一个时间步的输出
+        out = self.dropout(hidden.squeeze(0))
+        out = self.fc(out)
+        return out
+
+
+class GLeNet5(nn.Module):
+    """用于 FMnist """
     def __init__(self, seed):
-        super(GLeNet, self).__init__()
+        super(GLeNet5, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=5, padding=2)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=5)
-        self.fc1 = nn.Linear(32 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=5, padding=0)
+        self.fc1 = nn.Linear(32 * 5 * 5, 84)
+        self.fc2 = nn.Linear(84, 10)
         self.seed = seed
 
         torch.manual_seed(self.seed)  # 设置随机种子以固定参数初始化
@@ -86,13 +123,11 @@ class GLeNet(nn.Module):
         nn.init.kaiming_normal_(self.conv2.weight, a=0.1)
         nn.init.kaiming_normal_(self.fc1.weight, a=0.1)
         nn.init.kaiming_normal_(self.fc2.weight, a=0.1)
-        nn.init.kaiming_normal_(self.fc3.weight, a=0.1)
 
         nn.init.constant_(self.conv1.bias, 0.01)  # 使用常数初始化偏置
         nn.init.constant_(self.conv2.bias, 0.01)
         nn.init.constant_(self.fc1.bias, 0.01)
         nn.init.constant_(self.fc2.bias, 0.01)
-        nn.init.constant_(self.fc3.bias, 0.01)
 
     def forward(self, x):
         x = nn.functional.leaky_relu(self.conv1(x), negative_slope=0.1)
@@ -101,53 +136,183 @@ class GLeNet(nn.Module):
         x = nn.functional.max_pool2d(x, 2)
         x = x.view(-1, 32 * 5 * 5)
         x = nn.functional.leaky_relu(self.fc1(x), negative_slope=0.1)
-        x = nn.functional.leaky_relu(self.fc2(x), negative_slope=0.1)
-        x = self.fc3(x)
+        x = self.fc2(x)
         return x
 
 
-class LeNet(nn.Module):
+class LeNet5(nn.Module):
+    """用于 EMnist_digits """
     def __init__(self, seed):
-        super(LeNet, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, kernel_size=5, padding=2)
-        self.conv2 = nn.Conv2d(6, 16, kernel_size=5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        super(LeNet5, self).__init__()
+        self.conv1 = nn.Conv2d(1, 6, kernel_size=5, padding=0)
+        self.conv2 = nn.Conv2d(6, 16, kernel_size=5, padding=0)
+        self.fc1 = nn.Linear(16 * 4 * 4, 84)
+        self.fc2 = nn.Linear(84, 10)
         self.seed = seed
 
         torch.manual_seed(self.seed)  # 设置随机种子以固定参数初始化
-        nn.init.kaiming_normal_(self.conv1.weight)
-        nn.init.kaiming_normal_(self.conv2.weight)
-        nn.init.kaiming_normal_(self.fc1.weight)
-        nn.init.kaiming_normal_(self.fc2.weight)
-        nn.init.kaiming_normal_(self.fc3.weight)
+        nn.init.kaiming_normal_(self.conv1.weight, a=0.1)
+        nn.init.kaiming_normal_(self.conv2.weight, a=0.1)
+        nn.init.kaiming_normal_(self.fc1.weight, a=0.1)
+        nn.init.kaiming_normal_(self.fc2.weight, a=0.1)
 
         nn.init.constant_(self.conv1.bias, 0.01)  # 使用常数初始化偏置
         nn.init.constant_(self.conv2.bias, 0.01)
         nn.init.constant_(self.fc1.bias, 0.01)
         nn.init.constant_(self.fc2.bias, 0.01)
-        nn.init.constant_(self.fc3.bias, 0.01)
 
     def forward(self, x):
         x = nn.functional.leaky_relu(self.conv1(x), negative_slope=0.1)
         x = nn.functional.max_pool2d(x, 2)
         x = nn.functional.leaky_relu(self.conv2(x), negative_slope=0.1)
         x = nn.functional.max_pool2d(x, 2)
-        x = x.view(-1, 16 * 5 * 5)
+        x = x.view(-1, 16 * 4 * 4)
         x = nn.functional.leaky_relu(self.fc1(x), negative_slope=0.1)
-        x = nn.functional.leaky_relu(self.fc2(x), negative_slope=0.1)
-        x = self.fc3(x)
+        x = self.fc2(x)
         return x
 
 
-class VGG_CIFAR10(nn.Module):
+class MobileCNN(nn.Module):
+    """用于 EMnist_balanced """
     def __init__(self, seed):
-        super(VGG_CIFAR10, self).__init__()
+        super(MobileCNN, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=3, padding=1),
+            # 常规卷积
+            nn.Conv2d(1, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            # 深度可分离卷积
+            nn.Conv2d(32, 32, 3, groups=16, padding=1),  # 深度卷积
+            nn.Conv2d(32, 32, 1),                        # 逐点卷积
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(32 * 7 * 7, 47)
+        )
+        self.seed = seed
+
+        # 设置固定的随机种子
+        torch.manual_seed(self.seed)
+        # 手动初始化权重和偏置
+        for layer in self.features:
+            if isinstance(layer, nn.Conv2d):
+                init.xavier_uniform_(layer.weight)
+                init.constant_(layer.bias, 0.01)
+        for layer in self.classifier:
+            if isinstance(layer, nn.Linear):
+                init.xavier_uniform_(layer.weight)
+                init.constant_(layer.bias, 0.01)
+
+    def forward(self, x):
+        x = self.features(x)
+        return self.classifier(x)
+
+
+class TinyVGG(nn.Module):
+    """用于 EMnist_letters """
+    def __init__(self, seed):
+        super(TinyVGG, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 16, 3, padding=1),  # 28x28 → 28x28
+            nn.BatchNorm2d(16),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(16, 32, 3, padding=0),  # 14x14 → 12x12
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(32 * 6 * 6, 128),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(128, 26)  # 26类输出
+        )
+        self.seed = seed
+
+        # 设置固定的随机种子
+        torch.manual_seed(self.seed)
+        # 手动初始化权重和偏置
+        for layer in self.features:
+            if isinstance(layer, nn.Conv2d):
+                init.xavier_uniform_(layer.weight)
+                init.constant_(layer.bias, 0.01)
+        for layer in self.classifier:
+            if isinstance(layer, nn.Linear):
+                init.xavier_uniform_(layer.weight)
+                init.constant_(layer.bias, 0.01)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        return self.classifier(x)
+
+
+class MicroVGG(nn.Module):
+    """用于 cifar10 """
+    def __init__(self, seed):
+        super(MicroVGG, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.AdaptiveAvgPool2d(1)
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(128, 10)
+        )
+        self.seed = seed
+
+        # 设置固定的随机种子
+        torch.manual_seed(self.seed)
+        # 手动初始化权重和偏置
+        for layer in self.features:
+            if isinstance(layer, nn.Conv2d):
+                init.xavier_uniform_(layer.weight)
+                init.constant_(layer.bias, 0.01)
+        for layer in self.classifier:
+            if isinstance(layer, nn.Linear):
+                init.xavier_uniform_(layer.weight)
+                init.constant_(layer.bias, 0.01)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+        return x
+
+
+class VGG_cifar10(nn.Module):
+    def __init__(self, seed):
+        super(VGG_cifar10, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(negative_slope=0.1),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(negative_slope=0.1),
             nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(negative_slope=0.1),
             nn.MaxPool2d(kernel_size=2, stride=2),
 
@@ -156,16 +321,9 @@ class VGG_CIFAR10(nn.Module):
             nn.Conv2d(128, 128, kernel_size=3, padding=1),
             nn.LeakyReLU(negative_slope=0.1),
             nn.MaxPool2d(kernel_size=2, stride=2),
-
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.1),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.LeakyReLU(negative_slope=0.1),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-
         )
         self.classifier = nn.Sequential(
-            nn.Linear(256 * 4 * 4, 128), nn.LeakyReLU(negative_slope=0.1),
+            nn.Linear(128 * 4 * 4, 128), nn.LeakyReLU(negative_slope=0.1),
             nn.Linear(128, 10)
         )
         self.seed = seed
