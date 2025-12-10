@@ -12,7 +12,7 @@ import itertools
 QHN
 
 各算法搜索范围分别为momentum,NAG[0.8, 0.85, 0.9, 0.95, 0.99]; 
-QHM,QHN[[0.8, 0.85, 0.9, 0.95, 0.99], [0.5, 0.6, 0.7, 0.8, 0.9]]
+QHM,QHN[[0.8, 0.85, 0.9, 0.95, 0.99, 0.995, 0.999, 0.9995], [0.5, 0.6, 0.7, 0.8, 0.9]]
 
 在['PoolMLP', 'EMnist_digits']上，第二次lr搜索范围分别为SGD[0.5, 0.7, 1, 1.2, 1.5]，其它[2, 2.5, 3, 3.5, 4]
 
@@ -22,21 +22,22 @@ QHM,QHN[[0.8, 0.85, 0.9, 0.95, 0.99], [0.5, 0.6, 0.7, 0.8, 0.9]]
 """
 
 # file_name = 'QHN'
-# model_name, dataset_name, = 'PoolMLP', 'EMnist_digits'  # 模型、数据集
+# model_name, dataset_name, = 'MobileCNN', 'EMnist_balanced'  # 模型、数据集
 # # opt_list = ['SGD', 'momentum', 'NAG', 'QHM', 'QHN']
 # opt_list = ['SGD', 'momentum', 'NAG', 'QHM', 'QHN']
 #
-# save_dir = f'../save_tu/{file_name}_{model_name}_{dataset_name}/'
+# save_dir = f'../save_tu/'
 # os.makedirs(save_dir, exist_ok=True)
-# with open(save_dir + "select_params.txt", "w") as file:  # 先清空文件
+# with open(save_dir + f"{file_name}_{model_name}_{dataset_name}_select_params.txt", "w") as file:  # 先清空文件
 #     pass  # 只是确保文件存在且为空
 #
 # window_size = 10  # 使用最后window_size个数据点计算均值
 # loss_start_epoch = 20  # 从第 loss_start_epoch 个数据点开始绘制loss图
 # acc_start_epoch = 20   # 从第 acc_start_epoch 个数据点开始绘制acc图
-# loss_limit = ['1', 0.03]   # T
+# loss_limit = ['1', 0.03]   # 首元素为T表示绘制等值线
 # acc_limit = ['1', 0.92]
 # decimal_places = 5  # 设置保留的小数位数，可以根据需要调整
+# fix_params = 'T'  # 选择T表示固定算法超参数，仅对学习率进行搜索，用来查看各算法默认参数下的表现情况
 #
 # # 用于存储绘图数据的字典
 # plot_data = {
@@ -56,25 +57,39 @@ QHM,QHN[[0.8, 0.85, 0.9, 0.95, 0.99], [0.5, 0.6, 0.7, 0.8, 0.9]]
 #     if optimizer == 'SGD':
 #         beta_list = [0]
 #         parameters_list = [beta_list]
-#         lr_list = [0.5, 0.7, 1, 1.2, 1.5]
+#         lr_list = [0.2, 0.3, 0.5, 0.7, 1]
 #     elif optimizer == 'momentum':
-#         beta_list = [0.8, 0.85, 0.9, 0.95, 0.99]
+#         if fix_params == 'T':
+#             beta_list = [0.9]
+#         else:
+#             beta_list = [0.8, 0.85, 0.9, 0.95, 0.99]
 #         parameters_list = [beta_list]
-#         lr_list = [2, 2.5, 3, 3.5, 4]
+#         lr_list = [0.7, 1, 1.2, 1.5, 2]
 #     elif optimizer == 'NAG':
-#         beta_list = [0.8, 0.85, 0.9, 0.95, 0.99]
+#         if fix_params == 'T':
+#             beta_list = [0.9]
+#         else:
+#             beta_list = [0.8, 0.85, 0.9, 0.95, 0.99]
 #         parameters_list = [beta_list]
-#         lr_list = [2, 2.5, 3, 3.5, 4]
+#         lr_list = [0.7, 1, 1.2, 1.5, 2]
 #     elif optimizer == 'QHM':
-#         beta_list = [0.8, 0.85, 0.9, 0.95, 0.99]
-#         v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
+#         if fix_params == 'T':
+#             beta_list = [0.95]
+#             v_list = [0.7]
+#         else:
+#             beta_list = [0.95, 0.99, 0.995, 0.999, 0.9995]
+#             v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
 #         parameters_list = [beta_list, v_list]
-#         lr_list = [2, 2.5, 3, 3.5, 4]
+#         lr_list = [0.7, 1, 1.2]
 #     elif optimizer == 'QHN':
-#         beta_list = [0.8, 0.85, 0.9, 0.95, 0.99]
-#         v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
+#         if fix_params == 'T':
+#             beta_list = [0.95]
+#             v_list = [0.7]
+#         else:
+#             beta_list = [0.95, 0.99, 0.995, 0.999, 0.9995]
+#             v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
 #         parameters_list = [beta_list, v_list]
-#         lr_list = [2, 2.5, 3, 3.5, 4]
+#         lr_list = [0.7, 1, 1.2, 1.5, 2]
 #     else:
 #         raise ValueError(f"Unknown optimizer: {optimizer}")
 #
@@ -117,13 +132,17 @@ QHM,QHN[[0.8, 0.85, 0.9, 0.95, 0.99], [0.5, 0.6, 0.7, 0.8, 0.9]]
 #         formatted_min_loss = round(min_loss, decimal_places)
 #         formatted_max_acc = round(max_acc, decimal_places)
 #
-#         with open(save_dir + "select_params.txt", "a") as file:  # 注意改为 "a" 模式
+#         with open(save_dir + f"{file_name}_{model_name}_{dataset_name}_select_params.txt", "a") as file:  # 注意改为 "a" 模式
 #             file.write(f"{optimizer} loss_file: {loss_params_file} loss: {formatted_min_loss}\n")
 #             file.write(f"{optimizer} acc_file: {acc_params_file} acc: {formatted_max_acc}\n")
 #
 #         # 存储绘图数据，并在标签中添加min_loss和max_acc
-#         loss_label = f"{optimizer} (min_loss={formatted_min_loss})"
-#         acc_label = f"{optimizer} (max_acc={formatted_max_acc})"
+#         if optimizer == 'momentum':
+#             loss_label = f"CM (loss={formatted_min_loss})"
+#             acc_label = f"CM (acc={formatted_max_acc})"
+#         else:
+#             loss_label = f"{optimizer} (loss={formatted_min_loss})"
+#             acc_label = f"{optimizer} (acc={formatted_max_acc})"
 #
 #         plot_data['loss']['values'].append(best_loss_data['train_loss_list'][loss_start_epoch:])
 #         plot_data['loss']['labels'].append(loss_label)
@@ -139,13 +158,16 @@ QHM,QHN[[0.8, 0.85, 0.9, 0.95, 0.99], [0.5, 0.6, 0.7, 0.8, 0.9]]
 #     plt.plot(range(loss_start_epoch, loss_start_epoch + len(values)), values, label=label, linewidth=2)
 # if loss_limit[0] == 'T':
 #     plt.plot(range(loss_start_epoch, loss_start_epoch + len(values)), np.full(len(values), loss_limit[1]))
-# plt.title(f'Training Loss Comparison (From Epoch {loss_start_epoch}, min_loss=ave[-{window_size}:])')
-# plt.xlabel('Epoch')
-# plt.ylabel('Loss')
-# plt.legend()
+# plt.title(f'Training Loss Comparison (From Epoch {loss_start_epoch}, loss=ave[-{window_size}:])', fontsize=16)
+# plt.xlabel('Epoch', fontsize=16)
+# plt.ylabel('Loss', fontsize=16)
+# plt.legend(fontsize=18)  # 设置图例字体大小
 # plt.grid(True)
 # plt.tight_layout()
-# loss_plot_path = f'{save_dir}optimizers_loss_comparison.png'
+# if fix_params == 'T':
+#     loss_plot_path = f'{save_dir}{file_name}_{model_name}_{dataset_name}_fix_loss.png'
+# else:
+#     loss_plot_path = f'{save_dir}{file_name}_{model_name}_{dataset_name}_loss.png'
 # plt.savefig(loss_plot_path, dpi=300, bbox_inches='tight')
 # plt.close()
 # print(f"损失对比图已保存到: {loss_plot_path}")
@@ -156,73 +178,111 @@ QHM,QHN[[0.8, 0.85, 0.9, 0.95, 0.99], [0.5, 0.6, 0.7, 0.8, 0.9]]
 #     plt.plot(range(acc_start_epoch, acc_start_epoch + len(values)), values, label=label, linewidth=2)
 # if acc_limit[0] == 'T':
 #     plt.plot(range(acc_start_epoch, acc_start_epoch + len(values)), np.full(len(values), acc_limit[1]))
-# plt.title(f'Validation Accuracy Comparison (From Epoch {acc_start_epoch}, max_acc=ave[-{window_size}:])')
-# plt.xlabel('Epoch')
-# plt.ylabel('Accuracy')
-# plt.legend()
+# plt.title(f'Validation Accuracy Comparison (From Epoch {acc_start_epoch}, acc=ave[-{window_size}:])', fontsize=16)
+# plt.xlabel('Epoch', fontsize=16)
+# plt.ylabel('Accuracy', fontsize=16)
+# plt.legend(fontsize=18)  # 设置图例字体大小
 # plt.grid(True)
 # plt.tight_layout()
-# acc_plot_path = f'{save_dir}optimizers_acc_comparison.png'
+# if fix_params == 'T':
+#     acc_plot_path = f'{save_dir}{file_name}_{model_name}_{dataset_name}_fix_acc.png'
+# else:
+#     acc_plot_path = f'{save_dir}{file_name}_{model_name}_{dataset_name}_acc.png'
 # plt.savefig(acc_plot_path, dpi=300, bbox_inches='tight')
 # plt.close()
 # print(f"准确率对比图已保存到: {acc_plot_path}")
 
-# ##########################  QHN与QHM的部分参数对此图  ########################################################
+# ################################   QHN 不同算法在特殊参数选择下对比     ###################################
 """
 QHN
 
-QHM与QHN超参数搜索范围为[[0.8, 0.85, 0.9, 0.95, 0.99], [0.5, 0.6, 0.7, 0.8, 0.9]]
+各算法超参数分别为momentum,NAG[0.9]; QHM,QHN[[0.95, 0.999], 0.7]
+学习率由上面画图程序在固定参数选择下(fix_params = 'T')确定
 
-在['PoolMLP', 'EMnist_digits']上，第二次lr搜索范围均为[2, 2.5, 3, 3.5, 4]
+在['PoolMLP', 'EMnist_digits']上, lr分别为[1.5, 4, 4, 4, 3.5, 4, 4]
+在['TinyVGG', 'EMnist_letters']上, lr分别为[0.7, 1.5, 1.5, 2, 1.5, 2, 2]
+在['MobileCNN', 'EMnist_balanced']上, lr分别为[0.7, 1.5, 2, 1.2, 2, 1.5, 2]
 
-在['TinyVGG', 'EMnist_letters']上，第二次lr搜索范围均为[0.7, 1, 1.2, 1.5, 2]
-
-在['MobileCNN', 'EMnist_balanced']上，第二次lr搜索范围均为[0.7, 1, 1.2, 1.5, 2]
 """
 
-# file_name = 'QHN'
-# model_name, dataset_name, = 'MobileCNN', 'EMnist_balanced'  # 模型、数据集
-# opt_list = ['QHM', 'QHN']
-# params = [[0.9, 0.5], [0.9, 0.9]]
-# lr = 1
-# start_epoch = 70  # 从第 start_epoch 个数据点开始绘制loss图
+# model_name, dataset_name, optimizer= 'MobileCNN', 'EMnist_balanced', 'QHN'  # 模型, 数据集, 算法
+# lr_list = [0.7, 1.5, 2, 1.2, 2, 1.5, 2]
+# window_size = 10  # 使用最后window_size个数据点计算均值
+# loss_start_epoch = 10  # 从第 loss_start_epoch 个数据点开始绘制loss图
+# decimal_places = 5  # 设置保留的小数位数，可以根据需要调整
 #
-# data_path_1 = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_QHM_({params[0][0]}, {params[0][1]})_{lr}.pkl'
-# # data_path_1 = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_QHM_(0.9, 0.9)_1.pkl'
-# with open(data_path_1, 'rb') as f:
-#     data = pickle.load(f)
-# loss_list_1 = np.array(data['train_loss_list'][start_epoch:])
+# plot_data = {'values': [], 'labels': []}
 #
-# data_path_2 = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_QHM_({params[1][0]}, {params[1][1]})_{lr}.pkl'
-# with open(data_path_2, 'rb') as f:
-#     data = pickle.load(f)
-# loss_list_2 = np.array(data['train_loss_list'][start_epoch:])
+# SGD_file = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_SGD_(0,)_{lr_list[0]}.pkl'
+# with open(SGD_file, 'rb') as f:
+#     SGD_data = pickle.load(f)
+# SGD_train_loss_list = np.array(SGD_data['train_loss_list'])
+# SGD_min_loss = round(np.mean(SGD_train_loss_list[-window_size:]), decimal_places)
+# plot_data['values'].append(SGD_train_loss_list[loss_start_epoch:])
+# plot_data['labels'].append(f'SGD, loss={SGD_min_loss}')
 #
-# data_path_3 = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_QHN_({params[0][0]}, {params[0][1]})_{lr}.pkl'
-# with open(data_path_3, 'rb') as f:
-#     data = pickle.load(f)
-# loss_list_3 = np.array(data['train_loss_list'][start_epoch:])
+# CM_file = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_momentum_(0.9,)_{lr_list[1]}.pkl'
+# with open(CM_file, 'rb') as f:
+#     CM_data = pickle.load(f)
+# CM_train_loss_list = np.array(CM_data['train_loss_list'])
+# CM_min_loss = round(np.mean(CM_train_loss_list[-window_size:]), decimal_places)
+# plot_data['values'].append(CM_train_loss_list[loss_start_epoch:])
+# plot_data['labels'].append(f'CM(β=0.9), loss={CM_min_loss}')
 #
-# data_path_4 = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_QHN_({params[1][0]}, {params[1][1]})_{lr}.pkl'
-# with open(data_path_4, 'rb') as f:
-#     data = pickle.load(f)
-# loss_list_4 = np.array(data['train_loss_list'][start_epoch:])
+# NAG_file = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_NAG_(0.9,)_{lr_list[2]}.pkl'
+# with open(NAG_file, 'rb') as f:
+#     NAG_data = pickle.load(f)
+# NAG_train_loss_list = np.array(NAG_data['train_loss_list'])
+# NAG_min_loss = round(np.mean(NAG_train_loss_list[-window_size:]), decimal_places)
+# plot_data['values'].append(NAG_train_loss_list[loss_start_epoch:])
+# plot_data['labels'].append(f'NAG(β=0.9), loss={NAG_min_loss}')
 #
+# QHM_file1 = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_QHM_(0.95, 0.7)_{lr_list[3]}.pkl'
+# with open(QHM_file1, 'rb') as f:
+#     QHM_data1 = pickle.load(f)
+# QHM_train_loss_list1 = np.array(QHM_data1['train_loss_list'])
+# QHM_min_loss1 = round(np.mean(QHM_train_loss_list1[-window_size:]), decimal_places)
+# plot_data['values'].append(QHM_train_loss_list1[loss_start_epoch:])
+# plot_data['labels'].append(f'QHM(β=0.95, v=0.7), loss={QHM_min_loss1}')
+#
+# QHM_file2 = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_QHM_(0.999, 0.7)_{lr_list[4]}.pkl'
+# with open(QHM_file2, 'rb') as f:
+#     QHM_data2 = pickle.load(f)
+# QHM_train_loss_list2 = np.array(QHM_data2['train_loss_list'])
+# QHM_min_loss2 = round(np.mean(QHM_train_loss_list2[-window_size:]), decimal_places)
+# plot_data['values'].append(QHM_train_loss_list2[loss_start_epoch:])
+# plot_data['labels'].append(f'QHM(β=0.999, v=0.7), loss={QHM_min_loss2}')
+#
+# QHN_file1 = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_QHN_(0.95, 0.7)_{lr_list[5]}.pkl'
+# with open(QHN_file1, 'rb') as f:
+#     QHN_data1 = pickle.load(f)
+# QHN_train_loss_list1 = np.array(QHN_data1['train_loss_list'])
+# QHN_min_loss1 = round(np.mean(QHN_train_loss_list1[-window_size:]), decimal_places)
+# plot_data['values'].append(QHN_train_loss_list1[loss_start_epoch:])
+# plot_data['labels'].append(f'QHN(β=0.95, v=0.7), loss={QHN_min_loss1}')
+#
+# QHN_file2 = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_QHN_(0.999, 0.7)_{lr_list[6]}.pkl'
+# with open(QHN_file2, 'rb') as f:
+#     QHN_data2 = pickle.load(f)
+# QHN_train_loss_list2 = np.array(QHN_data2['train_loss_list'])
+# QHN_min_loss2 = round(np.mean(QHN_train_loss_list2[-window_size:]), decimal_places)
+# plot_data['values'].append(QHN_train_loss_list2[loss_start_epoch:])
+# plot_data['labels'].append(f'QHN(β=0.999, v=0.7), loss={QHN_min_loss2}')
+#
+# # 绘制损失对比图
 # plt.figure(figsize=(8, 6))
-# plt.plot(range(start_epoch, start_epoch + len(loss_list_1)), loss_list_1,
-#          label=f'QHM, β={params[0][0]}, v={params[0][1]}, lr={lr}', linewidth=1.5)
-# plt.plot(range(start_epoch, start_epoch + len(loss_list_3)), loss_list_3,
-#          label=f'QHN, β={params[0][0]}, v={params[0][1]}, lr={lr}', linewidth=1.5)
-# plt.plot(range(start_epoch, start_epoch + len(loss_list_2)), loss_list_2,
-#          label=f'QHM, β={params[1][0]}, v={params[1][1]}, lr={lr}', linewidth=1.5)
-# plt.plot(range(start_epoch, start_epoch + len(loss_list_4)), loss_list_4,
-#          label=f'QHN, β={params[1][0]}, v={params[1][1]}, lr={lr}', linewidth=1.5)
-# plt.title(f'Train Loss Comparison (From Epoch {start_epoch})')
-# plt.xlabel('Epoch')
-# plt.ylabel('Loss')
-# plt.legend()
+# for i, (values, label) in enumerate(zip(plot_data['values'], plot_data['labels'])):
+#     plt.plot(range(loss_start_epoch, loss_start_epoch + len(values)), values, label=label, linewidth=2)
+# plt.title(f'Training Loss Comparison (From Epoch {loss_start_epoch}, loss=ave[-{window_size}:])', fontsize=16)
+# plt.xlabel('Epoch', fontsize=16)
+# plt.ylabel('Training Loss', fontsize=16)
+# plt.legend(fontsize=16)  # 设置图例字体大小
 # plt.grid(True)
-# plt.show()
+# plt.tight_layout()
+# plot_path = f'../save_tu/{optimizer}_{model_name}_{dataset_name}_fix_loss.png'
+# plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+# plt.close()
+# print(f"图已保存到: {plot_path}")
 
 # ################################   AdaQHN 为各算法选择最优参数，按最低loss和最高acc     ###################################
 """
@@ -236,7 +296,7 @@ AdaQHN[[0.95, 0.99, 0.995, 0.999, 0.9995], 0.999, [0.5, 0.6, 0.7, 0.8, 0.9]]
 在['PoolMLP', 'EMnist_digits']，第二次lr搜索范围为  Adam、Adam_win[0.005, 0.007, 0.01, 0.015, 0.02, 0.03, 0.05];
 和Adan、QHAdam、AdaQHN[0.007, 0.01, 0.015, 0.02, 0.03, 0.05, 0.07]
 
-在['GLeNet5', 'FMnist']上，第二次lr搜索范围均为[0.003, 0.005, 0.007, 0.01, 0.015, 0.02, 0.03]；
+在['GLeNet5', 'FMnist']上，第二次lr搜索范围均为[0.003, 0.005, 0.007, 0.01, 0.015, 0.02, 0.03];
 
 在['TinyVGG', 'EMnist_letters']上，第二次lr搜索范围均为[0.005, 0.007, 0.01, 0.015, 0.02, 0.03, 0.05]
 
@@ -255,9 +315,9 @@ QHMAdam和AdaQHN[0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01]
 # model_name, dataset_name, = 'LSTM1', 'AGnews'  # 模型、数据集
 # opt_list = ['Adam', 'Adam_win', 'Adan', 'QHAdam', 'AdaQHN']
 #
-# save_dir = f'../save_tu/{file_name}_{model_name}_{dataset_name}/'
+# save_dir = f'../save_tu/'
 # os.makedirs(save_dir, exist_ok=True)
-# with open(save_dir + "select_params.txt", "w") as file:  # 先清空文件
+# with open(save_dir + f"{file_name}_{model_name}_{dataset_name}_select_params.txt", "w") as file:  # 先清空文件
 #     pass  # 只是确保文件存在且为空
 #
 # window_size = 10  # 使用最后window_size个数据点计算均值
@@ -266,6 +326,7 @@ QHMAdam和AdaQHN[0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01]
 # loss_limit = ['1', 0.03]  # T
 # acc_limit = ['1', 0.92]
 # decimal_places = 5  # 设置保留的小数位数，可以根据需要调整
+# fix_params = 'T'
 #
 # # 用于存储绘图数据的字典
 # plot_data = {
@@ -283,31 +344,50 @@ QHMAdam和AdaQHN[0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01]
 #     acc_params_file = ''
 #
 #     if optimizer == 'Adam':
-#         beta1_list = [0.8, 0.85, 0.9, 0.95, 0.99]
+#         if fix_params == 'T':
+#             beta1_list = [0.9]
+#         else:
+#             beta1_list = [0.8, 0.85, 0.9, 0.95, 0.99]
 #         beta2_list = [0.999]
 #         parameters_list = [beta1_list, beta2_list]
 #         lr_list = [0.0001, 0.00015, 0.0002, 0.0003, 0.0005, 0.0007, 0.001]
 #     elif optimizer == 'Adam_win':
-#         beta1_list = [0.8, 0.85, 0.9, 0.95, 0.99]
+#         if fix_params == 'T':
+#             beta1_list = [0.9]
+#         else:
+#             beta1_list = [0.8, 0.85, 0.9, 0.95, 0.99]
 #         beta2_list = [0.999]
 #         parameters_list = [beta1_list, beta2_list]
 #         lr_list = [0.0001, 0.00015, 0.0002, 0.0003, 0.0005, 0.0007, 0.001]
 #     elif optimizer == 'Adan':
-#         beta1_list = [0.9, 0.93, 0.96, 0.99]
-#         beta2_list = [0.9, 0.93, 0.96, 0.99]
-#         beta3_list = [0.9, 0.93, 0.96, 0.99]
+#         if fix_params == 'T':
+#             beta1_list = [0.96]
+#             beta2_list = [0.9]
+#             beta3_list = [0.99]
+#         else:
+#             beta1_list = [0.9, 0.93, 0.96, 0.99]
+#             beta2_list = [0.9, 0.93, 0.96, 0.99]
+#             beta3_list = [0.9, 0.93, 0.96, 0.99]
 #         parameters_list = [beta1_list, beta2_list, beta3_list]
 #         lr_list = [0.0005, 0.0007, 0.001, 0.0015, 0.002, 0.003, 0.005]
 #     elif optimizer == 'QHAdam':
-#         beta1_list = [0.95, 0.99, 0.995, 0.999, 0.9995]
+#         if fix_params == 'T':
+#             beta1_list = [0.999]
+#             v_list = [0.7]
+#         else:
+#             beta1_list = [0.95, 0.99, 0.995, 0.999, 0.9995]
+#             v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
 #         beta2_list = [0.999]
-#         v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
 #         parameters_list = [beta1_list, beta2_list, v_list]
 #         lr_list = [0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01]
 #     elif optimizer == 'AdaQHN':
-#         beta1_list = [0.95, 0.99, 0.995, 0.999, 0.9995]
+#         if fix_params == 'T':
+#             beta1_list = [0.999]
+#             v_list = [0.7]
+#         else:
+#             beta1_list = [0.95, 0.99, 0.995, 0.999, 0.9995]
+#             v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
 #         beta2_list = [0.999]
-#         v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
 #         parameters_list = [beta1_list, beta2_list, v_list]
 #         lr_list = [0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01]
 #     else:
@@ -354,13 +434,13 @@ QHMAdam和AdaQHN[0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01]
 #         formatted_min_loss = round(min_loss, decimal_places)
 #         formatted_max_acc = round(max_acc, decimal_places)
 #
-#         with open(save_dir + "select_params.txt", "a") as file:  # 注意改为 "a" 模式
+#         with open(save_dir + f"{file_name}_{model_name}_{dataset_name}_select_params.txt", "a") as file:  # 注意改为 "a" 模式
 #             file.write(f"{optimizer} loss_file: {loss_params_file} loss: {formatted_min_loss}\n")
 #             file.write(f"{optimizer} acc_file: {acc_params_file} acc: {formatted_max_acc}\n")
 #
 #         # 存储绘图数据，并在标签中添加min_loss和max_acc
-#         loss_label = f"{optimizer} (min_loss={formatted_min_loss})"
-#         acc_label = f"{optimizer} (max_acc={formatted_max_acc})"
+#         loss_label = f"{optimizer} (loss={formatted_min_loss})"
+#         acc_label = f"{optimizer} (acc={formatted_max_acc})"
 #
 #         plot_data['loss']['values'].append(best_loss_data['train_loss_list'][loss_start_epoch:])
 #         plot_data['loss']['labels'].append(loss_label)
@@ -376,13 +456,16 @@ QHMAdam和AdaQHN[0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01]
 #     plt.plot(range(loss_start_epoch, loss_start_epoch + len(values)), values, label=label, linewidth=2)
 # if loss_limit[0] == 'T':
 #     plt.plot(range(loss_start_epoch, loss_start_epoch + len(values)), np.full(len(values), loss_limit[1]))
-# plt.title(f'Training Loss Comparison (From Epoch {loss_start_epoch}, min_loss=ave[-{window_size}:])')
-# plt.xlabel('Epoch')
-# plt.ylabel('Loss')
-# plt.legend()
+# plt.title(f'Training Loss Comparison (From Epoch {loss_start_epoch}, loss=ave[-{window_size}:])', fontsize=16)
+# plt.xlabel('Epoch', fontsize=16)
+# plt.ylabel('Loss', fontsize=16)
+# plt.legend(fontsize=18)  # 设置图例字体大小
 # plt.grid(True)
 # plt.tight_layout()
-# loss_plot_path = f'{save_dir}optimizers_loss_comparison.png'
+# if fix_params == 'T':
+#     loss_plot_path = f'{save_dir}{file_name}_{model_name}_{dataset_name}_fix_loss.png'
+# else:
+#     loss_plot_path = f'{save_dir}{file_name}_{model_name}_{dataset_name}_loss.png'
 # plt.savefig(loss_plot_path, dpi=300, bbox_inches='tight')
 # plt.close()
 # print(f"损失对比图已保存到: {loss_plot_path}")
@@ -393,19 +476,212 @@ QHMAdam和AdaQHN[0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01]
 #     plt.plot(range(acc_start_epoch, acc_start_epoch + len(values)), values, label=label, linewidth=2)
 # if acc_limit[0] == 'T':
 #     plt.plot(range(acc_start_epoch, acc_start_epoch + len(values)), np.full(len(values), acc_limit[1]))
-# plt.title(f'Validation Accuracy Comparison (From Epoch {acc_start_epoch}, max_acc=ave[-{window_size}:])')
-# plt.xlabel('Epoch')
-# plt.ylabel('Accuracy')
-# plt.legend()
+# plt.title(f'Validation Accuracy Comparison (From Epoch {acc_start_epoch}, acc=ave[-{window_size}:])', fontsize=16)
+# plt.xlabel('Epoch', fontsize=16)
+# plt.ylabel('Accuracy', fontsize=16)
+# plt.legend(fontsize=18)  # 设置图例字体大小
 # plt.grid(True)
 # plt.tight_layout()
-# acc_plot_path = f'{save_dir}optimizers_acc_comparison.png'
+# if fix_params == 'T':
+#     acc_plot_path = f'{save_dir}{file_name}_{model_name}_{dataset_name}_fix_acc.png'
+# else:
+#     acc_plot_path = f'{save_dir}{file_name}_{model_name}_{dataset_name}_acc.png'
 # plt.savefig(acc_plot_path, dpi=300, bbox_inches='tight')
 # plt.close()
 # print(f"准确率对比图已保存到: {acc_plot_path}")
 
+# ################################   AdaQHN 不同算法在特殊参数选择下对比     ###################################
+"""
+AdaQHN
 
-# ##########################  局部放大图  ########################################################
+各算法超参数分别为Adam[0.9, 0.999]; Adam_win[0.9, 0.999]; Adan[0.96, 0.9, 0.99]; 
+QHAdam[0.999, 0.999, 0.7]; AdaQHN[0.999, 0.999, 0.7]
+
+在['PoolMLP', 'EMnist_digits'], lr分别为[0.02, 0.02, 0.03, 0.02, 0.015]
+在['GLeNet5', 'FMnist'], lr分别为[0.007, 0.01, 0.007, 0.01, 0.01]
+在['TinyVGG', 'EMnist_letters'], lr分别为[0.01, 0.015, 0.015, 0.02, 0.015]
+在['MicroVGG', 'cifar10'], lr分别为[0.02, 0.03, 0.01, 0.05, 0.03]
+在['GRU1', 'AGnews'], lr分别为[0.007, 0.007, 0.007, 0.005, 0.001]
+在['LSTM1', 'AGnews'], lr分别为[0.0007, 0.0007, 0.003, 0.005, 0.005]
+"""
+
+# model_name, dataset_name, optimizer= 'LSTM1', 'AGnews', 'AdaQHN'  # 模型, 数据集, 算法
+# lr_list = [0.0007, 0.0007, 0.003, 0.005, 0.005]
+# window_size = 10  # 使用最后window_size个数据点计算均值
+# loss_start_epoch = 10  # 从第 loss_start_epoch 个数据点开始绘制loss图
+# decimal_places = 5  # 设置保留的小数位数，可以根据需要调整
+#
+# plot_data = {'values': [], 'labels': []}
+#
+# Adam_file = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_Adam_(0.9, 0.999)_{lr_list[0]}.pkl'
+# with open(Adam_file, 'rb') as f:
+#     Adam_data = pickle.load(f)
+# Adam_train_loss_list = np.array(Adam_data['train_loss_list'])
+# Adam_min_loss = round(np.mean(Adam_train_loss_list[-window_size:]), decimal_places)
+# plot_data['values'].append(Adam_train_loss_list[loss_start_epoch:])
+# plot_data['labels'].append(f'Adam(0.9, 0.999), loss={Adam_min_loss}')
+#
+# Adam_win_file = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_Adam_win_(0.9, 0.999)_{lr_list[1]}.pkl'
+# with open(Adam_win_file, 'rb') as f:
+#     Adam_win_data = pickle.load(f)
+# Adam_win_train_loss_list = np.array(Adam_win_data['train_loss_list'])
+# Adam_win_min_loss = round(np.mean(Adam_win_train_loss_list[-window_size:]), decimal_places)
+# plot_data['values'].append(Adam_win_train_loss_list[loss_start_epoch:])
+# plot_data['labels'].append(f'Adam_win(0.9, 0.999), loss={Adam_win_min_loss}')
+#
+# Adan_file = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_Adan_(0.96, 0.9, 0.99)_{lr_list[2]}.pkl'
+# with open(Adan_file, 'rb') as f:
+#     Adan_data = pickle.load(f)
+# Adan_train_loss_list = np.array(Adan_data['train_loss_list'])
+# Adan_min_loss = round(np.mean(Adan_train_loss_list[-window_size:]), decimal_places)
+# plot_data['values'].append(Adan_train_loss_list[loss_start_epoch:])
+# plot_data['labels'].append(f'Adan(0.96, 0.9, 0.99), loss={Adan_min_loss}')
+#
+# QHAdam_file = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_QHAdam_(0.999, 0.999, 0.7)_{lr_list[3]}.pkl'
+# with open(QHAdam_file, 'rb') as f:
+#     QHAdam_data = pickle.load(f)
+# QHAdam_train_loss_list = np.array(QHAdam_data['train_loss_list'])
+# QHAdam_min_loss = round(np.mean(QHAdam_train_loss_list[-window_size:]), decimal_places)
+# plot_data['values'].append(QHAdam_train_loss_list[loss_start_epoch:])
+# plot_data['labels'].append(f'QHAdam(0.999, 0.999, 0.7), loss={QHAdam_min_loss}')
+#
+# AdaQHN_file = f'../save_data/{optimizer}_{model_name}_{dataset_name}/ave_AdaQHN_(0.999, 0.999, 0.7)_{lr_list[4]}.pkl'
+# with open(AdaQHN_file, 'rb') as f:
+#     AdaQHN_data = pickle.load(f)
+# AdaQHN_train_loss_list = np.array(AdaQHN_data['train_loss_list'])
+# AdaQHN_min_loss = round(np.mean(AdaQHN_train_loss_list[-window_size:]), decimal_places)
+# plot_data['values'].append(AdaQHN_train_loss_list[loss_start_epoch:])
+# plot_data['labels'].append(f'AdaQHN(0.999, 0.999, 0.7), loss={AdaQHN_min_loss}')
+#
+#
+# # 绘制损失对比图
+# plt.figure(figsize=(8, 6))
+# for i, (values, label) in enumerate(zip(plot_data['values'], plot_data['labels'])):
+#     plt.plot(range(loss_start_epoch, loss_start_epoch + len(values)), values, label=label, linewidth=2)
+# plt.title(f'Training Loss Comparison (From Epoch {loss_start_epoch}, loss=ave[-{window_size}:])', fontsize=16)
+# plt.xlabel('Epoch', fontsize=16)
+# plt.ylabel('Training Loss', fontsize=16)
+# plt.legend(fontsize=16)  # 设置图例字体大小
+# plt.grid(True)
+# plt.tight_layout()
+# plot_path = f'../save_tu/{optimizer}_{model_name}_{dataset_name}_fix_loss.png'
+# plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+# plt.close()
+# print(f"图已保存到: {plot_path}")
+
+
+# ################################   QHN和AdaQHN的参数敏感性     ###################################
+"""
+QHM和QHN[beta[0.95, 0.99, 0.995, 0.999, 0.9995], v[0.5, 0.6, 0.7, 0.8, 0.9]]
+在['TinyVGG', 'EMnist_letters']上，第二次lr搜索范围为[0.7, 1, 1.2, 1.5, 2]
+
+AdaQHN[beta[0.95, 0.99, 0.995, 0.999, 0.9995], 0.999, v[0.5, 0.6, 0.7, 0.8, 0.9]]
+在['TinyVGG', 'EMnist_letters']上，第二次lr搜索范围为[0.005, 0.007, 0.01, 0.015, 0.02, 0.03, 0.05]
+"""
+
+model_name, dataset_name, file_name= 'TinyVGG', 'EMnist_letters', 'QHN'  # 模型，数据集和算法类
+optimizer_list = ['QHM', 'QHN']
+fix_param_name = 'beta'
+fix_param_value = 0.9995
+# optimizer_list = ['QHM', 'QHN', 'AdaQHN']
+
+window_size = 10  # 使用最后window_size个数据点计算均值
+loss_start_epoch = 10  # 从第 loss_start_epoch 个数据点开始绘制loss图
+acc_start_epoch = 10  # 从第 acc_start_epoch 个数据点开始绘制acc图
+decimal_places = 5  # 设置保留的小数位数，可以根据需要调整
+
+# 用于存储绘图数据的字典
+plot_data = {'values': [], 'labels': []}
+
+for optimizer in optimizer_list:
+
+    if optimizer == 'QHM':
+        # 原始参数范围
+        beta_list = [0.95, 0.995, 0.9995]
+        v_list = [0.5, 0.7, 0.9]
+        lr_list = [0.7, 1, 1.2, 1.5, 2]
+        if fix_param_name == 'beta':
+            beta_list = [fix_param_value]
+        elif fix_param_name == 'v':
+            v_list = [fix_param_value]
+        else:
+            raise ValueError(f"Unknown fix_param_name: {fix_param_name}")
+        parameters_list = [beta_list, v_list]
+
+    elif optimizer == 'QHN':
+        beta_list = [0.95, 0.995, 0.9995]
+        v_list = [0.5, 0.7, 0.9]
+        lr_list = [0.7, 1, 1.2, 1.5, 2]
+        if fix_param_name == 'beta':
+            beta_list = [fix_param_value]
+        elif fix_param_name == 'v':
+            v_list = [fix_param_value]
+        else:
+            raise ValueError(f"Unknown fix_param_name: {fix_param_name}")
+        parameters_list = [beta_list, v_list]
+
+    elif optimizer == 'AdaQHN':
+        beta1_list = [0.95, 0.99, 0.995, 0.999, 0.9995]
+        beta2_list = [0.999]
+        v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
+        lr_list = [0.005, 0.007, 0.01, 0.015, 0.02, 0.03, 0.05]
+        if fix_param_name == 'beta1':
+            beta1_list = [fix_param_value]
+        elif fix_param_name == 'beta2':
+            beta2_list = [fix_param_value]
+        elif fix_param_name == 'v':
+            v_list = [fix_param_value]
+        else:
+            raise ValueError(f"Unknown fix_param_name: {fix_param_name}")
+        parameters_list = [beta1_list, beta2_list, v_list]
+
+    else:
+        raise ValueError(f"Unknown optimizer: {optimizer}")
+
+    for parameters in itertools.product(*parameters_list):
+
+        min_loss = 1e4
+        for lr in lr_list:
+            file = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_{optimizer}_{parameters}_{lr}.pkl'
+
+            try:
+                with open(file, 'rb') as f:
+                    data = pickle.load(f)
+                train_loss_list = np.array(data['train_loss_list'])
+                min_lin_loss = np.mean(train_loss_list[-window_size:])
+                # 更新最小损失
+                if min_lin_loss < min_loss:
+                    min_loss = min_lin_loss
+                    loss_params_file = file
+                    best_loss_data = data  # 保存最小loss对应的数据
+            except FileNotFoundError:
+                print(f"File not found: {file}")
+                continue
+
+        formatted_min_loss = round(min_loss, decimal_places)  # 保留至小数点后5位
+        label = f"{optimizer} {parameters}, loss={formatted_min_loss}"
+
+        plot_data['values'].append(best_loss_data['train_loss_list'][loss_start_epoch:])
+        plot_data['labels'].append(label)
+
+
+# 绘制损失对比图
+plt.figure(figsize=(8, 6))
+for i, (values, label) in enumerate(zip(plot_data['values'], plot_data['labels'])):
+    plt.plot(range(loss_start_epoch, loss_start_epoch + len(values)), values, label=label, linewidth=2)
+plt.title(f'Parameter ablation', fontsize=16)
+plt.xlabel('Epoch', fontsize=16)
+plt.ylabel('Training Loss', fontsize=16)
+plt.legend(fontsize=16)  # 设置图例字体大小
+plt.grid(True)
+plt.tight_layout()
+plot_path = f'../save_tu/ablation_{model_name}_{dataset_name}_{file_name}_{fix_param_name}={fix_param_value}.png'
+plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+plt.close()
+print(f"图已保存到: {plot_path}")
+
+
+# ##########################  局部放大图代码  ########################################################
 
 # file1 = '../save_data/QHN_MLP1_DXS1/ave_SGD_beta0.9_v1_lr1.pkl'
 # with open(file1, 'rb') as f:

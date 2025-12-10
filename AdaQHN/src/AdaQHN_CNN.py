@@ -53,8 +53,8 @@ QHAdam和AdaQHN[0.007, 0.01, 0.015, 0.02, 0.03, 0.05, 0.07]
 在['GRU1', 'AGnews']上，第二次lr搜索范围均为[0.0007, 0.001, 0.0015, 0.002, 0.003, 0.005, 0.007]
 
 在['LSTM1', 'AGnews']上，第二次lr搜索范围分别为 
-Adam、Adam_win[0.0001, 0.00015, 0.0002, 0.0003, 0.0005, 0.0007, 0.001]([0.0002, 0.0003, 0.0005, 0.0007, 0.001]);
-Adan[0.0005, 0.0007, 0.001, 0.0015, 0.002, 0.003, 0.005]([0.0007, 0.001, 0.0015, 0.002, 0.003]);
+Adam、Adam_win[0.0001, 0.00015, 0.0002, 0.0003, 0.0005, 0.0007, 0.001];
+Adan[0.0005, 0.0007, 0.001, 0.0015, 0.002, 0.003, 0.005];
 QHMAdam和AdaQHN[0.001, 0.0015, 0.002, 0.003, 0.005, 0.007, 0.01]
 """
 
@@ -70,30 +70,30 @@ for opt_index in range(len(opt_list)):
         beta1_list = [0.8, 0.85, 0.9, 0.95, 0.99]
         beta2_list = [0.999]
         parameters_list = [beta1_list, beta2_list]
-        lr_list = [0.005, 0.007, 0.01, 0.015, 0.02, 0.03, 0.05]
+        lr_list = [0.00001, 0.00003, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1]
     elif optimizer == 'Adam_win':
         beta1_list = [0.8, 0.85, 0.9, 0.95, 0.99]
         beta2_list = [0.999]
         parameters_list = [beta1_list, beta2_list]
-        lr_list = [0.005, 0.007, 0.01, 0.015, 0.02, 0.03, 0.05]
+        lr_list = [0.00001, 0.00003, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1]
     elif optimizer == 'Adan':
         beta1_list = [0.9, 0.93, 0.96, 0.99]
         beta2_list = [0.9, 0.93, 0.96, 0.99]
         beta3_list = [0.9, 0.93, 0.96, 0.99]
         parameters_list = [beta1_list, beta2_list, beta3_list]
-        lr_list = [0.01, 0.015, 0.02, 0.03, 0.05, 0.07, 0.1]
+        lr_list = [0.00001, 0.00003, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1]
     elif optimizer == 'QHAdam':
         beta1_list = [0.95, 0.99, 0.995, 0.999, 0.9995]
         beta2_list = [0.999]
         v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
         parameters_list = [beta1_list, beta2_list, v_list]
-        lr_list = [0.007, 0.01, 0.015, 0.02, 0.03, 0.05, 0.07]
+        lr_list = [0.00001, 0.00003, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1]
     elif optimizer == 'AdaQHN':
         beta1_list = [0.95, 0.99, 0.995, 0.999, 0.9995]
         beta2_list = [0.999]
         v_list = [0.5, 0.6, 0.7, 0.8, 0.9]
         parameters_list = [beta1_list, beta2_list, v_list]
-        lr_list = [0.007, 0.01, 0.015, 0.02, 0.03, 0.05, 0.07]
+        lr_list = [0.00001, 0.00003, 0.0001, 0.0003, 0.001, 0.003, 0.01, 0.03, 0.1]
     else:
         raise ValueError(f"Unknown optimizer: {optimizer}")
 
@@ -416,48 +416,48 @@ for opt_index in range(len(opt_list)):
                 }, f)
             print("ave data save successfully")
 
-        colors = matplotlib.colormaps.get_cmap('tab10')  # 颜色映射
-        plt.figure(figsize=(10, 6))
-        for index in range(len(lr_list)):
-            file = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_{optimizer}_{parameters}_{lr_list[index]}.pkl'
-            with open(file, 'rb') as f:
-                data = pickle.load(f)
-            train_loss = np.array(data['train_loss_list'])
-            # validation_loss = np.array(data['validation_loss_list'])
-
-            x_values = list(range(20, len(train_loss)))
-            plt.plot(x_values, train_loss[20:], label=f'{optimizer} parameters{parameters} lr{lr_list[index]}', color=colors(index))
-            # plt.plot(x_values, validation_loss[5:], label=f'{optimizer} parameters{parameters} lr{lr_list[index]}', linestyle='--', color=colors(index))
-
-        # plt.plot(np.full(Epoch, 0), label='0')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.legend()
-        plt.grid()
-        plt.savefig(f'../save_tu/{file_name}_{model_name}_{dataset_name}/loss/{optimizer}_{parameters}_loss.png')
-        plt.clf()  # 清除图像内容
-        plt.close()  # 关闭图像
-
-        plt.figure(figsize=(10, 6))
-        for index in range(len(lr_list)):
-            file = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_{optimizer}_{parameters}_{lr_list[index]}.pkl'
-            with open(file, 'rb') as f:
-                data = pickle.load(f)
-            # train_acc = np.array(data['train_acc_list'])
-            validation_acc = np.array(data['validation_acc_list'])
-
-            x_values = list(range(20, len(train_loss)))
-            # plt.plot(x_values, train_acc[40:], label=f'{optimizer} parameters{parameters} lr{lr_list[index]}', color=colors(index))
-            plt.plot(x_values, validation_acc[20:], label=f'{optimizer} parameters{parameters} lr{lr_list[index]}', linestyle='--', color=colors(index))
-        # plt.plot(np.full(Epoch, 1), label='1')
-        plt.xlabel('Epoch')
-        plt.ylabel('ACC')
-        plt.legend()
-        plt.grid()
-        plt.savefig(f'../save_tu/{file_name}_{model_name}_{dataset_name}/acc/{optimizer}_{parameters}_acc.png')
-        plt.clf()  # 清除图像内容
-        plt.close()  # 关闭图像
-
-        print("tu saved successfully.")
+        # colors = matplotlib.colormaps.get_cmap('tab10')  # 颜色映射
+        # plt.figure(figsize=(10, 6))
+        # for index in range(len(lr_list)):
+        #     file = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_{optimizer}_{parameters}_{lr_list[index]}.pkl'
+        #     with open(file, 'rb') as f:
+        #         data = pickle.load(f)
+        #     train_loss = np.array(data['train_loss_list'])
+        #     # validation_loss = np.array(data['validation_loss_list'])
+        #
+        #     x_values = list(range(20, len(train_loss)))
+        #     plt.plot(x_values, train_loss[20:], label=f'{optimizer} parameters{parameters} lr{lr_list[index]}', color=colors(index))
+        #     # plt.plot(x_values, validation_loss[5:], label=f'{optimizer} parameters{parameters} lr{lr_list[index]}', linestyle='--', color=colors(index))
+        #
+        # # plt.plot(np.full(Epoch, 0), label='0')
+        # plt.xlabel('Epoch')
+        # plt.ylabel('Loss')
+        # plt.legend()
+        # plt.grid()
+        # plt.savefig(f'../save_tu/{file_name}_{model_name}_{dataset_name}/loss/{optimizer}_{parameters}_loss.png')
+        # plt.clf()  # 清除图像内容
+        # plt.close()  # 关闭图像
+        #
+        # plt.figure(figsize=(10, 6))
+        # for index in range(len(lr_list)):
+        #     file = f'../save_data/{file_name}_{model_name}_{dataset_name}/ave_{optimizer}_{parameters}_{lr_list[index]}.pkl'
+        #     with open(file, 'rb') as f:
+        #         data = pickle.load(f)
+        #     # train_acc = np.array(data['train_acc_list'])
+        #     validation_acc = np.array(data['validation_acc_list'])
+        #
+        #     x_values = list(range(20, len(train_loss)))
+        #     # plt.plot(x_values, train_acc[40:], label=f'{optimizer} parameters{parameters} lr{lr_list[index]}', color=colors(index))
+        #     plt.plot(x_values, validation_acc[20:], label=f'{optimizer} parameters{parameters} lr{lr_list[index]}', linestyle='--', color=colors(index))
+        # # plt.plot(np.full(Epoch, 1), label='1')
+        # plt.xlabel('Epoch')
+        # plt.ylabel('ACC')
+        # plt.legend()
+        # plt.grid()
+        # plt.savefig(f'../save_tu/{file_name}_{model_name}_{dataset_name}/acc/{optimizer}_{parameters}_acc.png')
+        # plt.clf()  # 清除图像内容
+        # plt.close()  # 关闭图像
+        #
+        # print("tu saved successfully.")
 
 

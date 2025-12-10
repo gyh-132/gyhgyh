@@ -20,7 +20,7 @@ print('device= ', device)
 file_name = 'QHN'
 # model_name, dataset_name, = ['PoolMLP', 'EMnist_digits']; ['TinyVGG', 'EMnist_letters'];
 # ['MobileCNN', 'EMnist_balanced']; ['GRU1', 'AGnews']
-model_name, dataset_name, = ['GRU1', 'AGnews']  # 模型、数据集
+model_name, dataset_name, = ['PoolMLP', 'EMnist_digits']  # 模型、数据集
 Epoch, batch_size = 80, 128  # 周期、样本分批大小
 # seed_list = [[825, 831], [253, 995], [192, 418], [629, 808], [390, 427]]
 seed_list = [[825, 831], [253, 995], [192, 418]]
@@ -41,8 +41,6 @@ QHM,QHN[[0.8, 0.85, 0.9, 0.95, 0.99], [0.5, 0.6, 0.7, 0.8, 0.9]]
 在['TinyVGG', 'EMnist_letters']上，第二次lr搜索范围分别为SGD[0.15, 0.2, 0.3, 0.5, 0.7]，其它[0.7, 1, 1.2, 1.5, 2]
 
 在['MobileCNN', 'EMnist_balanced']上，第二次lr搜索范围分别为SGD[0.2, 0.3, 0.5, 0.7, 1];其它[0.7, 1, 1.2, 1.5, 2]
-
-在['GRU1', 'AGnews']上，第二次lr搜索范围分别为SGD[0.2, 0.3, 0.5, 0.7, 1];其它[0.7, 1, 1.2, 1.5, 2]
 """
 
 L2 = ['t', 1e-4]      # L2正则    分别表·示：是否启用、正则项系数
